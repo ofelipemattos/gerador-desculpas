@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { cookies } from 'next/headers';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'gerador-desculpas-super-secret-key';
 
@@ -43,20 +42,21 @@ export async function POST(req: Request) {
       { expiresIn: '7d' }
     );
 
+    // Seta o cookie diretamente no NextResponse
+    // Isso garante que o header Set-Cookie vai corretamente na resposta HTTP,
+    // inclusive atrás de proxy reverso como o Nginx
     const response = NextResponse.json(
       { message: 'Login bem-sucedido!', user: { id: user.id, name: user.name, email: user.email } },
       { status: 200 }
     );
 
-    const cookiesNext = await cookies();
-
-    cookiesNext.set({
+    response.cookies.set({
       name: 'auth_token',
       value: token,
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 60 * 60 * 24 * 7, // 1 semana
+      sameSite: 'lax',   // 'lax' é necessário com proxy reverso (Nginx)
+      maxAge: 60 * 60 * 24 * 7,
       path: '/',
     });
 
